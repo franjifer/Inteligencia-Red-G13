@@ -1,0 +1,6 @@
+{ "name": "Bot Grupo 13 v0", 
+"version": "0.0", 
+"authors": [ "Pareja 13 - Francisco Jimeno" ], 
+"description": "Bot inicial v0 - Inteligencia en Red", 
+"platform": "Python 3.10", 
+"programmingLang": "Python" }
