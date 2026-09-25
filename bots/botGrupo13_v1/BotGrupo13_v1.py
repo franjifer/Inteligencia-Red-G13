@@ -1,37 +1,29 @@
 from BotInRedUC3M import BotInRedUC3M
 from robocode_tank_royale.bot_api.events import ScannedBotEvent, HitByBulletEvent, HitWallEvent
 
-# ---------------------------------------------------------------
-# UMBRALES DEL SISTEMA DE REGLAS (justificados en la memoria)
-# ---------------------------------------------------------------
-N = 8              # turnos que damos por valido un escaneo (360 / 45 grados por turno = 8)
-X_RETIRADA = 20    # energia por debajo de la cual nos retiramos (un impacto de potencia 3 quita 16)
-D_CERCA = 150      # por debajo: rival demasiado cerca -> alejarse, potencia 3
-D_LEJOS = 400      # por encima: rival lejos -> acercarse, potencia 1
-MARGEN = 100       # distancia a la pared del punto de refugio (no pegarse al borde)
-PASO = 100         # distancia que pedimos avanzar en cada turno
-T_ZIGZAG = 20      # cada cuantos turnos cambiamos de sentido en el zigzag
+# Umbrales (justificados en la memoria)
+N = 8              # turnos que vale un escaneo (una vuelta de radar)
+X_RETIRADA = 20    # energia minima para seguir combatiendo
+D_CERCA = 150
+D_LEJOS = 400
+MARGEN = 100       # separacion de la pared del punto de refugio
+PASO = 100
+T_ZIGZAG = 20
 
 
 class BotGrupo13_v1(BotInRedUC3M):
 
     def __init__(self):
         super().__init__("BotGrupo13_v1.json")
-        # HECHOS del rival (se rellenan en on_scanned_bot)
         self._rival_x = self._rival_y = self._rival_dist = None
         self._ultimo_escaneo = 0
-        # HECHOS de eventos (se rellenan en on_hit_by_bullet / on_hit_wall)
-        self._turno_impacto = -100      # turno en el que nos dio la ultima bala
-        self._dir_bala = 0              # direccion de la bala que nos dio
-        self._choque_pared = False      # acabamos de chocar con la pared
-        # Memoria propia
-        self._sentido = 1               # 1 = adelante, -1 = atras
+        self._turno_impacto = -100
+        self._dir_bala = 0
+        self._choque_pared = False
+        self._sentido = 1
 
-    # -----------------------------------------------------------
-    # PERCEPCION: aqui solo se actualizan hechos, no se decide nada
-    # -----------------------------------------------------------
+    # ---------- HECHOS: aqui solo se percibe, no se decide ----------
     def on_round_started(self, e):
-        # empieza una ronda: los hechos de la anterior ya no valen
         self._rival_x = self._rival_y = self._rival_dist = None
         self._ultimo_escaneo = 0
         self._turno_impacto = -100
@@ -49,26 +41,23 @@ class BotGrupo13_v1(BotInRedUC3M):
     def on_hit_wall(self, e: HitWallEvent):
         self._choque_pared = True
 
-    # -----------------------------------------------------------
-    # MOTOR DE INFERENCIAS: cada turno evalua las reglas
-    # -----------------------------------------------------------
+    # ---------- MOTOR DE INFERENCIAS ----------
     def run(self):
-        self.adjust_gun_for_body_turn = True     # el canon no se mueve al girar el cuerpo
-        self.adjust_radar_for_gun_turn = True    # el radar no se mueve al girar el canon
+        self.adjust_gun_for_body_turn = True
+        self.adjust_radar_for_gun_turn = True
 
         while self.is_running:
             visto = (self._rival_dist is not None and
                      self.turn_number - self._ultimo_escaneo < N)
             impacto_reciente = self.turn_number - self._turno_impacto <= 1
 
-            # ===== GRUPO MOVIMIENTO: solo gana una regla (orden = prioridad) =====
+            # Movimiento: solo gana una regla (orden = prioridad)
             if self.energy < X_RETIRADA:                            # R1 retirada
                 rx, ry = self._punto_refugio()
                 self.set_turn_left(self.bearing_to(rx, ry))
                 self.set_forward(PASO)
 
             elif impacto_reciente:                                  # R2 esquiva tras impacto
-                # nos ponemos perpendiculares a la bala para salir de su linea de tiro
                 self.set_turn_left(self.calc_bearing(self._dir_bala + 90))
                 self.set_forward(PASO * self._sentido)
 
@@ -85,10 +74,9 @@ class BotGrupo13_v1(BotInRedUC3M):
                 self.set_turn_left(self._girar(self.bearing_to(self._rival_x, self._rival_y) + 180))
                 self.set_forward(PASO)
 
-            elif visto:                                             # R6 zigzag a distancia media
+            elif visto:                                             # R6 zigzag perpendicular
                 if self.turn_number % T_ZIGZAG == 0:
                     self._sentido = -self._sentido
-                # perpendiculares al rival: somos un blanco dificil sin perder distancia
                 self.set_turn_left(self._girar(self.bearing_to(self._rival_x, self._rival_y) + 90))
                 self.set_forward(PASO * self._sentido)
 
@@ -96,33 +84,27 @@ class BotGrupo13_v1(BotInRedUC3M):
                 self.set_turn_left(30)
                 self.set_forward(PASO * self._sentido)
 
-            # ===== GRUPO CANON: se ejecuta en el mismo turno que el movimiento =====
-            if visto:                                               # R8 apuntar al rival
+            # Canon: se ejecuta en el mismo turno que el movimiento
+            if visto:                                               # R8 apuntar
                 self.set_turn_gun_left(self.gun_bearing_to(self._rival_x, self._rival_y))
                 if self.gun_heat == 0:
-                    if self.energy < X_RETIRADA:                    # R12 en retirada: potencia minima
+                    if self.energy < X_RETIRADA:                    # R12 en retirada, potencia minima
                         self.set_fire(1)
-                    elif self._rival_dist < D_CERCA:                # R9 cerca: potencia alta
+                    elif self._rival_dist < D_CERCA:                # R9
                         self.set_fire(3)
-                    elif self._rival_dist <= D_LEJOS:               # R10 media: potencia media
+                    elif self._rival_dist <= D_LEJOS:               # R10
                         self.set_fire(2)
-                    else:                                           # R11 lejos: potencia baja
+                    else:                                           # R11
                         self.set_fire(1)
 
-            # ===== RADAR: barre siempre, es la fuente de hechos =====
-            self.set_turn_radar_right(45)
+            self.set_turn_radar_right(45)   # barrer el radar SIEMPRE
             self.go()
 
-    # -----------------------------------------------------------
-    # Auxiliares
-    # -----------------------------------------------------------
     def _girar(self, angulo):
-        # deja el angulo en [-180, 180] para girar siempre por el lado corto
         return self.normalize_relative_angle(angulo)
 
     def _punto_refugio(self):
-        # esquina mas alejada del rival, con margen para no pegarse a la pared
-        # si no sabemos donde esta el rival, suponemos que esta en el centro
+        """Esquina mas alejada del rival (o del centro si no lo conocemos), con margen a la pared."""
         rx = self._rival_x if self._rival_x is not None else self.arena_width / 2
         ry = self._rival_y if self._rival_y is not None else self.arena_height / 2
         esquinas = [(MARGEN, MARGEN),
