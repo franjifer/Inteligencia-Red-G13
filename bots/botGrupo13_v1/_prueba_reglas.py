@@ -5,14 +5,14 @@ import BotGrupo13_v1 as m
 
 class Falso(m.BotGrupo13_v1):
     # tapamos las propiedades de solo lectura de la API para poder fijarlas a mano
-    for _n in ("energy", "x", "y", "gun_heat", "turn_number", "direction", "gun_direction",
+    for _n in ("energy", "x", "y", "gun_heat", "turn_number", "direction", "gun_direction", "radar_direction",
                "arena_width", "arena_height", "is_running", "adjust_gun_for_body_turn",
                "adjust_radar_for_gun_turn"):
         locals()[_n] = None
 
     def __init__(self, energy=100, x=400, y=300, gun_heat=0, turn=10):
         self.energy, self.x, self.y, self.gun_heat, self.turn_number = energy, x, y, gun_heat, turn
-        self.direction = self.gun_direction = 0
+        self.direction = self.gun_direction = self.radar_direction = 0
         self.arena_width, self.arena_height = 800, 600
         self.acciones = {}
         self._writer = self._log = None   # sin registro CSV en la prueba
@@ -32,6 +32,8 @@ class Falso(m.BotGrupo13_v1):
     def set_forward(self, d): self._reg("avance", d)
     def set_turn_gun_left(self, a): self._reg("canon", round(a, 1))
     def set_turn_radar_right(self, a): self._reg("radar", a)
+    def set_turn_radar_left(self, a): self._reg("radar_sigue", round(a, 1))
+    def radar_bearing_to(self, x, y): return self.normalize_relative_angle(self.direction_to(x, y) - self.radar_direction)
     def set_fire(self, p): self._reg("fuego", p)
     def distance_to(self, x, y): return math.hypot(x - self.x, y - self.y)
     def direction_to(self, x, y): return math.degrees(math.atan2(y - self.y, x - self.x)) % 360
@@ -41,9 +43,9 @@ class Falso(m.BotGrupo13_v1):
     def calc_bearing(self, d): return self.normalize_relative_angle(d - self.direction)
 
 
-def escanea(b, x, y):
+def escanea(b, x, y, speed=0, direction=0):
     class E: pass
-    e = E(); e.x, e.y = x, y
+    e = E(); e.x, e.y, e.speed, e.direction = x, y, speed, direction
     b.on_scanned_bot(e)
 
 
@@ -75,6 +77,15 @@ casos.append(("canon caliente: apunta pero no dispara", b.acciones, "fuego" not 
 
 b = Falso(turn=30); escanea(b, 750, 300); b._ultimo_escaneo = 20; b.run()   # hace 10 turnos > N
 casos.append(("escaneo viejo (>N): por defecto", b.acciones, b.acciones["giro"] == 30 and "fuego" not in b.acciones))
+
+b = Falso(); b.gun_direction = 90; escanea(b, 750, 300); b.run()
+casos.append(("canon no alineado: apunta pero no dispara", b.acciones, "fuego" not in b.acciones and b.acciones["canon"] == -90))
+
+b = Falso(); escanea(b, 750, 300, speed=8, direction=90); b.run()   # rival subiendo: apunta por delante
+casos.append(("prediccion: apunta adelantado", b.acciones, 20 < b.acciones["canon"] < 40 and "fuego" not in b.acciones))
+
+b = Falso(); escanea(b, 750, 300); b.run()
+casos.append(("radar sigue al rival con margen", b.acciones, b.acciones.get("radar_sigue") == 20 and "radar" not in b.acciones))
 
 ok = True
 for nombre, acc, bien in casos:
