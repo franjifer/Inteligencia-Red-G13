@@ -7,7 +7,7 @@ class Falso(m.BotGrupo13_v1):
     # tapamos las propiedades de solo lectura de la API para poder fijarlas a mano
     for _n in ("energy", "x", "y", "gun_heat", "turn_number", "direction", "gun_direction", "radar_direction",
                "arena_width", "arena_height", "is_running", "adjust_gun_for_body_turn",
-               "adjust_radar_for_gun_turn"):
+               "adjust_radar_for_gun_turn", "adjust_radar_for_body_turn"):
         locals()[_n] = None
 
     def __init__(self, energy=100, x=400, y=300, gun_heat=0, turn=10):
@@ -58,19 +58,22 @@ b = Falso(); escanea(b, 750, 300); b.run()   # dist 350 -> zigzag + potencia 2
 casos.append(("R6 zigzag + R10 potencia 2", b.acciones, b.acciones["fuego"] == 2 and b.acciones["giro"] == 90))
 
 b = Falso(); escanea(b, 500, 300); b.run()   # dist 100 -> alejarse + potencia 3
-casos.append(("R5 alejarse + R9 potencia 3", b.acciones, b.acciones["fuego"] == 3 and abs(b.acciones["giro"]) == 180))
+casos.append(("R5 alejarse (marcha atras) + R9 potencia 3", b.acciones, b.acciones["fuego"] == 3 and b.acciones["giro"] == 0 and b.acciones["avance"] == -100))
 
 b = Falso(x=50, y=300); escanea(b, 750, 300); b.run()   # dist 700 -> acercarse + potencia 1
 casos.append(("R4 acercarse + R11 potencia 1", b.acciones, b.acciones["fuego"] == 1 and b.acciones["giro"] == 0))
 
 b = Falso(energy=15); escanea(b, 500, 300); b.run()   # retirada a esquina (100,100) o (100,500)
-casos.append(("R1 retirada + R12 potencia 1", b.acciones, b.acciones["fuego"] == 1 and abs(b.acciones["giro"]) > 90))
+casos.append(("R1 retirada (marcha atras) + R12 potencia 1", b.acciones, b.acciones["fuego"] == 1 and b.acciones["avance"] == -100 and 30 < b.acciones["giro"] < 40))
 
 b = Falso(); escanea(b, 750, 300); b._turno_impacto = 10; b._dir_bala = 180; b.run()
 casos.append(("R2 esquiva tras impacto", b.acciones, b.acciones["giro"] == -90))
 
 b = Falso(); b._choque_pared = True; b.run()
 casos.append(("R3 rebote en pared", b.acciones, b.acciones["avance"] == -100 and b._sentido == -1))
+
+b = Falso(x=60, y=300); b.direction = 180; escanea(b, 750, 300); b.run()   # mirando a la pared izquierda
+casos.append(("R3 pared prevista (sin chocar)", b.acciones, b.acciones["avance"] == -100 and b._sentido == -1))
 
 b = Falso(gun_heat=0.5); escanea(b, 750, 300); b.run()
 casos.append(("canon caliente: apunta pero no dispara", b.acciones, "fuego" not in b.acciones and "canon" in b.acciones))

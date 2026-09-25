@@ -9,7 +9,9 @@ D_CERCA = 150
 D_LEJOS = 400
 MARGEN = 100       # separacion de la pared del punto de refugio
 PASO = 100
-T_ZIGZAG = 20
+T_ZIGZAG = 10      # menor que el vuelo de una bala (~18 turnos a 250 px) para romper la prediccion del rival
+MARGEN_PARED = 50  # distancia minima a la pared
+ANTICIPO = 80      # px por delante que miramos para prever el choque con la pared
 RADAR_EXTRA = 20   # grados de mas al seguir al rival con el radar, para no perderlo
 MEDIO_BOT = 18     # medio ancho del bot (36 px): tolerancia para dar por alineado el canon
 
@@ -50,6 +52,7 @@ class BotGrupo13_v1(BotInRedUC3M):
     def run(self):
         self.adjust_gun_for_body_turn = True
         self.adjust_radar_for_gun_turn = True
+        self.adjust_radar_for_body_turn = True
 
         while self.is_running:
             visto = (self._rival_dist is not None and
@@ -59,25 +62,23 @@ class BotGrupo13_v1(BotInRedUC3M):
             # Movimiento: solo gana una regla (orden = prioridad)
             if self.energy < X_RETIRADA:                            # R1 retirada
                 rx, ry = self._punto_refugio()
-                self.set_turn_left(self.bearing_to(rx, ry))
-                self.set_forward(PASO)
+                self._ir_hacia(self.bearing_to(rx, ry))
 
             elif impacto_reciente:                                  # R2 esquiva tras impacto
                 self.set_turn_left(self.calc_bearing(self._dir_bala + 90))
                 self.set_forward(PASO * self._sentido)
 
-            elif self._choque_pared:                                # R3 rebote en pared
+            elif self._choque_pared or self._hacia_pared():         # R3 rebote en pared
                 self._choque_pared = False
                 self._sentido = -self._sentido
+                self.set_turn_left(30)
                 self.set_forward(PASO * self._sentido)
 
             elif visto and self._rival_dist > D_LEJOS:              # R4 acercarse
-                self.set_turn_left(self.bearing_to(self._rival_x, self._rival_y))
-                self.set_forward(PASO)
+                self._ir_hacia(self.bearing_to(self._rival_x, self._rival_y))
 
             elif visto and self._rival_dist < D_CERCA:              # R5 alejarse
-                self.set_turn_left(self._girar(self.bearing_to(self._rival_x, self._rival_y) + 180))
-                self.set_forward(PASO)
+                self._ir_hacia(self.bearing_to(self._rival_x, self._rival_y) + 180)
 
             elif visto:                                             # R6 zigzag perpendicular
                 if self.turn_number % T_ZIGZAG == 0:
@@ -119,6 +120,24 @@ class BotGrupo13_v1(BotInRedUC3M):
 
     def _girar(self, angulo):
         return self.normalize_relative_angle(angulo)
+
+    def _ir_hacia(self, bearing):
+        """Va hacia un rumbo: marcha atras si queda a la espalda, para no dar la vuelta entera."""
+        bearing = self._girar(bearing)
+        if abs(bearing) <= 90:
+            self.set_turn_left(bearing)
+            self.set_forward(PASO)
+        else:
+            self.set_turn_left(self._girar(bearing + 180))
+            self.set_forward(-PASO)
+
+    def _hacia_pared(self):
+        """True si siguiendo en el sentido actual nos salimos del margen de seguridad."""
+        rad = math.radians(self.direction)
+        nx = self.x + math.cos(rad) * self._sentido * ANTICIPO
+        ny = self.y + math.sin(rad) * self._sentido * ANTICIPO
+        return not (MARGEN_PARED < nx < self.arena_width - MARGEN_PARED and
+                    MARGEN_PARED < ny < self.arena_height - MARGEN_PARED)
 
     def _prediccion(self, potencia):
         """Posicion donde estara el rival cuando llegue la bala, si sigue recto a la misma velocidad."""
