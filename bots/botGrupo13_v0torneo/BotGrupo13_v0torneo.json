@@ -1,0 +1,8 @@
+{
+  "name": "Bot Grupo 13 v0 (torneo)",
+  "version": "0.1",
+  "authors": [ "Pareja 13 - Francisco Jimeno" ],
+  "description": "Bot que se mando al torneo como v0 (para comparar con v1)",
+  "platform": "Python 3.10",
+  "programmingLang": "Python"
+}
