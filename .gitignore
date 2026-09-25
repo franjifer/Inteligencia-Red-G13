@@ -6,3 +6,15 @@ dataset_v0 (1)/
 nul
 My First Bot for Python _ Robocode Tank Royale Docs.html
 My First Bot for Python _ Robocode Tank Royale Docs_files/
+*.md
+.devin/
+.claude/
+.cursor/
+.agents/
+.windsurf/
+.codex/
+.github/copilot-instructions.md
+.cursorrules
+.windsurfrules
+CLAUDE.md
+AGENTS.md
