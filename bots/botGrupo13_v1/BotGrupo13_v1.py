@@ -5,7 +5,8 @@ from robocode_tank_royale.bot_api.events import ScannedBotEvent, HitByBulletEven
 # Umbrales (justificados en la memoria)
 N = 8              # turnos que vale un escaneo (una vuelta de radar)
 X_RETIRADA = 20    # energia minima para seguir combatiendo
-D_CERCA = 150
+D_CERCA = 150      # por debajo nos alejamos (riesgo de embestida)
+D_POT3 = 200       # por debajo disparamos potencia 3 (a 150-250 px acertamos ~25%: compensa apostar mas)
 D_LEJOS = 400
 MARGEN = 100       # separacion de la pared del punto de refugio
 RADIO_REFUGIO = 60 # llegados a esta distancia del refugio dejamos de acercarnos y hacemos zigzag
@@ -96,7 +97,7 @@ class BotGrupo13_v1(BotInRedUC3M):
             if visto:
                 if self.energy < X_RETIRADA:                        # R12 en retirada, potencia minima
                     potencia = 1
-                elif self._rival_dist < D_CERCA:                    # R9
+                elif self._rival_dist < D_POT3:                     # R9
                     potencia = 3
                 elif self._rival_dist <= D_LEJOS:                   # R10
                     potencia = 2

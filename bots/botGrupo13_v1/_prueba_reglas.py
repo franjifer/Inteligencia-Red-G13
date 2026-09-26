@@ -57,6 +57,9 @@ casos.append(("R7 por defecto (no visto)", b.acciones, "fuego" not in b.acciones
 b = Falso(); escanea(b, 750, 300); b.run()   # dist 350 -> zigzag + potencia 2
 casos.append(("R6 zigzag + R10 potencia 2", b.acciones, b.acciones["fuego"] == 2 and b.acciones["giro"] == 90))
 
+b = Falso(); escanea(b, 580, 300); b.run()   # dist 180 -> zigzag pero ya potencia 3
+casos.append(("R6 zigzag + R9 potencia 3 (150-200)", b.acciones, b.acciones["fuego"] == 3 and abs(b.acciones["giro"]) == 90))
+
 b = Falso(); escanea(b, 500, 300); b.run()   # dist 100 -> alejarse + potencia 3
 casos.append(("R5 alejarse (marcha atras) + R9 potencia 3", b.acciones, b.acciones["fuego"] == 3 and b.acciones["giro"] == 0 and b.acciones["avance"] == -100))
 
