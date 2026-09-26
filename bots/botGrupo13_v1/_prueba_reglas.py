@@ -84,8 +84,8 @@ casos.append(("escaneo viejo (>N): por defecto", b.acciones, b.acciones["giro"] 
 b = Falso(); b.gun_direction = 90; escanea(b, 750, 300); b.run()
 casos.append(("canon no alineado: apunta pero no dispara", b.acciones, "fuego" not in b.acciones and b.acciones["canon"] == -90))
 
-b = Falso(); escanea(b, 750, 300, speed=8, direction=90); b.run()   # rival subiendo: apunta por delante
-casos.append(("prediccion: apunta adelantado", b.acciones, 20 < b.acciones["canon"] < 40 and "fuego" not in b.acciones))
+b = Falso(energy=15, x=110, y=110); escanea(b, 500, 300); b.run()   # ya en el refugio (100,100): zigzag
+casos.append(("R1 en el refugio: zigzag, no quieto", b.acciones, abs(b.acciones["avance"]) == 100 and 110 < b.acciones["giro"] < 122))   # rival a 26 grados + 90
 
 b = Falso(); escanea(b, 750, 300); b.run()
 casos.append(("radar sigue al rival con margen", b.acciones, b.acciones.get("radar_sigue") == 20 and "radar" not in b.acciones))

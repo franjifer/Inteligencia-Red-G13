@@ -8,6 +8,7 @@ X_RETIRADA = 20    # energia minima para seguir combatiendo
 D_CERCA = 150
 D_LEJOS = 400
 MARGEN = 100       # separacion de la pared del punto de refugio
+RADIO_REFUGIO = 60 # llegados a esta distancia del refugio dejamos de acercarnos y hacemos zigzag
 PASO = 100
 T_ZIGZAG = 10      # menor que el vuelo de una bala (~18 turnos a 250 px) para romper la prediccion del rival
 MARGEN_PARED = 50  # distancia minima a la pared
@@ -26,7 +27,6 @@ class BotGrupo13_v1(BotInRedUC3M):
     # ---------- HECHOS: aqui solo se percibe, no se decide ----------
     def _olvidar_hechos(self):
         self._rival_x = self._rival_y = self._rival_dist = None
-        self._rival_vel = self._rival_dir = 0
         self._ultimo_escaneo = 0
         self._turno_impacto = -100
         self._dir_bala = 0
@@ -37,7 +37,6 @@ class BotGrupo13_v1(BotInRedUC3M):
 
     def on_scanned_bot(self, e: ScannedBotEvent):
         self._rival_x, self._rival_y = e.x, e.y
-        self._rival_vel, self._rival_dir = e.speed, e.direction
         self._rival_dist = self.distance_to(e.x, e.y)
         self._ultimo_escaneo = self.turn_number
 
@@ -62,7 +61,13 @@ class BotGrupo13_v1(BotInRedUC3M):
             # Movimiento: solo gana una regla (orden = prioridad)
             if self.energy < X_RETIRADA:                            # R1 retirada
                 rx, ry = self._punto_refugio()
-                self._ir_hacia(self.bearing_to(rx, ry))
+                if self.distance_to(rx, ry) > RADIO_REFUGIO:
+                    self._ir_hacia(self.bearing_to(rx, ry))
+                elif visto:
+                    self._zigzag()                                  # ya en el refugio: no quedarse quieto
+                else:
+                    self.set_turn_left(30)
+                    self.set_forward(PASO * self._sentido)
 
             elif impacto_reciente:                                  # R2 esquiva tras impacto
                 self.set_turn_left(self.calc_bearing(self._dir_bala + 90))
@@ -81,10 +86,7 @@ class BotGrupo13_v1(BotInRedUC3M):
                 self._ir_hacia(self.bearing_to(self._rival_x, self._rival_y) + 180)
 
             elif visto:                                             # R6 zigzag perpendicular
-                if self.turn_number % T_ZIGZAG == 0:
-                    self._sentido = -self._sentido
-                self.set_turn_left(self._girar(self.bearing_to(self._rival_x, self._rival_y) + 90))
-                self.set_forward(PASO * self._sentido)
+                self._zigzag()
 
             else:                                                   # R7 por defecto: patrullar
                 self.set_turn_left(30)
@@ -101,8 +103,7 @@ class BotGrupo13_v1(BotInRedUC3M):
                 else:                                               # R11
                     potencia = 1
 
-                px, py = self._prediccion(potencia)                 # R8 apuntar a donde estara el rival
-                giro_canon = self.gun_bearing_to(px, py)
+                giro_canon = self.gun_bearing_to(self._rival_x, self._rival_y)   # R8 apuntar
                 self.set_turn_gun_left(giro_canon)
                 tolerancia = max(3, math.degrees(math.atan2(MEDIO_BOT, self._rival_dist)))
                 alineado = abs(giro_canon) < tolerancia
@@ -139,15 +140,12 @@ class BotGrupo13_v1(BotInRedUC3M):
         return not (MARGEN_PARED < nx < self.arena_width - MARGEN_PARED and
                     MARGEN_PARED < ny < self.arena_height - MARGEN_PARED)
 
-    def _prediccion(self, potencia):
-        """Posicion donde estara el rival cuando llegue la bala, si sigue recto a la misma velocidad."""
-        turnos = (self.turn_number - self._ultimo_escaneo) + self._rival_dist / (20 - 3 * potencia)
-        rad = math.radians(self._rival_dir)
-        px = self._rival_x + math.cos(rad) * self._rival_vel * turnos
-        py = self._rival_y + math.sin(rad) * self._rival_vel * turnos
-        px = min(max(px, MEDIO_BOT), self.arena_width - MEDIO_BOT)
-        py = min(max(py, MEDIO_BOT), self.arena_height - MEDIO_BOT)
-        return px, py
+    def _zigzag(self):
+        """Perpendicular al rival, cambiando de sentido cada T_ZIGZAG turnos."""
+        if self.turn_number % T_ZIGZAG == 0:
+            self._sentido = -self._sentido
+        self.set_turn_left(self._girar(self.bearing_to(self._rival_x, self._rival_y) + 90))
+        self.set_forward(PASO * self._sentido)
 
     def _punto_refugio(self):
         """Esquina mas alejada del rival (o del centro si no lo conocemos), con margen a la pared."""
