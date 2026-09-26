@@ -1,17 +1,17 @@
 import math
+import random
 from BotInRedUC3M import BotInRedUC3M
 from robocode_tank_royale.bot_api.events import ScannedBotEvent, HitByBulletEvent, HitWallEvent
 
 # Umbrales (justificados en la memoria)
 N = 8              # turnos que vale un escaneo (una vuelta de radar)
 X_RETIRADA = 20    # energia minima para seguir combatiendo
-D_CERCA = 150      # por debajo nos alejamos (riesgo de embestida)
-D_POT3 = 200       # por debajo disparamos potencia 3 (a 150-250 px acertamos ~25%: compensa apostar mas)
+D_CERCA = 150      # por debajo nos alejamos y disparamos potencia 3
 D_LEJOS = 400
 MARGEN = 100       # separacion de la pared del punto de refugio
 RADIO_REFUGIO = 60 # llegados a esta distancia del refugio dejamos de acercarnos y hacemos zigzag
 PASO = 100
-T_ZIGZAG = 10      # menor que el vuelo de una bala (~18 turnos a 250 px) para romper la prediccion del rival
+T_ZIGZAG = (8, 30) # turnos entre cambios de sentido, al azar: un periodo fijo es predecible
 MARGEN_PARED = 50  # distancia minima a la pared
 ANTICIPO = 80      # px por delante que miramos para prever el choque con la pared
 RADAR_EXTRA = 20   # grados de mas al seguir al rival con el radar, para no perderlo
@@ -23,6 +23,7 @@ class BotGrupo13_v1(BotInRedUC3M):
     def __init__(self):
         super().__init__("BotGrupo13_v1.json")
         self._sentido = 1
+        self._proximo_cambio = 0
         self._olvidar_hechos()
 
     # ---------- HECHOS: aqui solo se percibe, no se decide ----------
@@ -71,6 +72,8 @@ class BotGrupo13_v1(BotInRedUC3M):
                     self.set_forward(PASO * self._sentido)
 
             elif impacto_reciente:                                  # R2 esquiva tras impacto
+                if self.turn_number == self._turno_impacto:
+                    self._sentido = -self._sentido
                 self.set_turn_left(self.calc_bearing(self._dir_bala + 90))
                 self.set_forward(PASO * self._sentido)
 
@@ -97,7 +100,7 @@ class BotGrupo13_v1(BotInRedUC3M):
             if visto:
                 if self.energy < X_RETIRADA:                        # R12 en retirada, potencia minima
                     potencia = 1
-                elif self._rival_dist < D_POT3:                     # R9
+                elif self._rival_dist < D_CERCA:                    # R9
                     potencia = 3
                 elif self._rival_dist <= D_LEJOS:                   # R10
                     potencia = 2
@@ -142,9 +145,10 @@ class BotGrupo13_v1(BotInRedUC3M):
                     MARGEN_PARED < ny < self.arena_height - MARGEN_PARED)
 
     def _zigzag(self):
-        """Perpendicular al rival, cambiando de sentido cada T_ZIGZAG turnos."""
-        if self.turn_number % T_ZIGZAG == 0:
+        """Perpendicular al rival, cambiando de sentido a intervalos variables."""
+        if self.turn_number >= self._proximo_cambio:
             self._sentido = -self._sentido
+            self._proximo_cambio = self.turn_number + random.randint(*T_ZIGZAG)
         self.set_turn_left(self._girar(self.bearing_to(self._rival_x, self._rival_y) + 90))
         self.set_forward(PASO * self._sentido)
 

@@ -16,12 +16,9 @@ class Falso(m.BotGrupo13_v1):
         self.arena_width, self.arena_height = 800, 600
         self.acciones = {}
         self._writer = self._log = None   # sin registro CSV en la prueba
-        self._rival_x = self._rival_y = self._rival_dist = None
-        self._ultimo_escaneo = 0
-        self._turno_impacto = -100
-        self._dir_bala = 0
-        self._choque_pared = False
+        self._olvidar_hechos()
         self._sentido = 1
+        self._proximo_cambio = 0
         self.is_running = True
         self.adjust_gun_for_body_turn = self.adjust_radar_for_gun_turn = False
 
@@ -57,8 +54,8 @@ casos.append(("R7 por defecto (no visto)", b.acciones, "fuego" not in b.acciones
 b = Falso(); escanea(b, 750, 300); b.run()   # dist 350 -> zigzag + potencia 2
 casos.append(("R6 zigzag + R10 potencia 2", b.acciones, b.acciones["fuego"] == 2 and b.acciones["giro"] == 90))
 
-b = Falso(); escanea(b, 580, 300); b.run()   # dist 180 -> zigzag pero ya potencia 3
-casos.append(("R6 zigzag + R9 potencia 3 (150-200)", b.acciones, b.acciones["fuego"] == 3 and abs(b.acciones["giro"]) == 90))
+b = Falso(); escanea(b, 580, 300); b.run()   # dist 180 -> zigzag, potencia 2
+casos.append(("R6 zigzag + R10 potencia 2 (150-200)", b.acciones, b.acciones["fuego"] == 2 and abs(b.acciones["giro"]) == 90))
 
 b = Falso(); escanea(b, 500, 300); b.run()   # dist 100 -> alejarse + potencia 3
 casos.append(("R5 alejarse (marcha atras) + R9 potencia 3", b.acciones, b.acciones["fuego"] == 3 and b.acciones["giro"] == 0 and b.acciones["avance"] == -100))
@@ -70,7 +67,7 @@ b = Falso(energy=15); escanea(b, 500, 300); b.run()   # retirada a esquina (100,
 casos.append(("R1 retirada (marcha atras) + R12 potencia 1", b.acciones, b.acciones["fuego"] == 1 and b.acciones["avance"] == -100 and 30 < b.acciones["giro"] < 40))
 
 b = Falso(); escanea(b, 750, 300); b._turno_impacto = 10; b._dir_bala = 180; b.run()
-casos.append(("R2 esquiva tras impacto", b.acciones, b.acciones["giro"] == -90))
+casos.append(("R2 esquiva tras impacto (gira 90 e invierte)", b.acciones, b.acciones["giro"] == -90 and b._sentido == -1))
 
 b = Falso(); b._choque_pared = True; b.run()
 casos.append(("R3 rebote en pared", b.acciones, b.acciones["avance"] == -100 and b._sentido == -1))
